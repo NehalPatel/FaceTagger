@@ -16,16 +16,17 @@ FaceTagger is a simple Python-based face recognition system that can identify kn
 
 ## 📁 Project Structure
 FaceTagger/
-├── known_faces/ # Images of known people (one face per image)
-├── test_images/ # Images with multiple unknown faces
-├── encodings/ # Pickled face encodings
+├── known_faces/           # Images of known people (one face per image)
+├── test_images/           # Images with multiple unknown faces
+├── encodings/             # Pickled face encodings
 ├── app/
-│ ├── encoder.py # Encodes new faces
-│ ├── recognizer.py # Recognizes faces in test images
-│ └── utils.py # Utility/helper functions
-├── main.py # Entry point to test recognition
-├── requirements.txt # Python dependencies
-└── README.md # Project documentation
+│   ├── encoder.py         # Encodes new faces
+│   ├── recognizer.py      # Recognizes faces in test images
+│   └── utils.py           # Utility/helper functions
+├── main.py                # Entry point to test recognition
+├── requirements.txt       # Python dependencies
+└── README.md              # Project documentation
+
 
 
 ---
@@ -80,8 +81,11 @@ Python 3.7+
 
 #### 👨‍💻 Author
 Nehal Patel
+
 iamnehalpatel@gmail.com
+
 Professor | Developer | AI Researcher
+
 📍 Surat, Gujarat, India
 
 #### 🛡️ License
