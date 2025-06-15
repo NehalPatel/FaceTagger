@@ -6,11 +6,13 @@ import pickle
 import insightface
 from insightface.app import FaceAnalysis
 from models.base import FaceRecognizer
-from utils import list_images
+from app.utils import list_images
 
 class InsightFaceModel(FaceRecognizer):
     def encode_known_faces(self, input_dir, output_path):
         app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
+        # app = FaceAnalysis(name='buffalo_l', providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
+        # print("Execution Providers:", app.ctx.providers)
         app.prepare(ctx_id=0)
 
         known_encodings = []
@@ -34,7 +36,8 @@ class InsightFaceModel(FaceRecognizer):
             pickle.dump((known_names, known_encodings), f)
 
     def recognize_faces(self, test_dir, encodings_path, output_dir):
-        app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
+        # app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
+        app = FaceAnalysis(name='buffalo_l', providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
         app.prepare(ctx_id=0)
 
         with open(encodings_path, "rb") as f:
