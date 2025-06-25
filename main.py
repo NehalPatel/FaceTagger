@@ -13,5 +13,5 @@ def main(model_name="insightface"):
     model.recognize_faces("test_images", enc_file, "output")
 
 if __name__ == "__main__":
-    # main("insightface")  # or "face_recognition"
-    main("face_recognition")  # or "face_recognition"
+    main("insightface")  # or "face_recognition"
+    # main("face_recognition")  # or "face_recognition"
