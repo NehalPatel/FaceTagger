@@ -23,17 +23,23 @@ TABLES = {
     'facerecognition': '''CREATE TABLE IF NOT EXISTS encodings_facerecognition (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
-        encoding BLOB NOT NULL
+        img_file VARCHAR(255) NOT NULL,
+        encoding BLOB NOT NULL,
+        UNIQUE KEY unique_name_img (name, img_file)
     )''',
     'insightface': '''CREATE TABLE IF NOT EXISTS encodings_insightface (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
-        encoding BLOB NOT NULL
+        img_file VARCHAR(255) NOT NULL,
+        encoding BLOB NOT NULL,
+        UNIQUE KEY unique_name_img (name, img_file)
     )''',
     'hybrid': '''CREATE TABLE IF NOT EXISTS encodings_hybrid (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
-        encoding BLOB NOT NULL
+        img_file VARCHAR(255) NOT NULL,
+        encoding BLOB NOT NULL,
+        UNIQUE KEY unique_name_img (name, img_file)
     )'''
 }
 
@@ -49,13 +55,19 @@ def create_table(model_name):
     cursor.close()
     conn.close()
 
-def insert_encoding(model_name, name, encoding):
+def insert_encoding(model_name, name, img_file, encoding):
     conn = get_mysql_connection()
     cursor = conn.cursor()
     table = f'encodings_{model_name}'
-    sql = f"INSERT INTO {table} (name, encoding) VALUES (%s, %s)"
-    cursor.execute(sql, (name, encoding))
-    conn.commit()
+    # Check if already exists
+    cursor.execute(f"SELECT id FROM {table} WHERE name=%s AND img_file=%s", (name, img_file))
+    if cursor.fetchone() is None:
+        sql = f"INSERT INTO {table} (name, img_file, encoding) VALUES (%s, %s, %s)"
+        cursor.execute(sql, (name, img_file, encoding))
+        conn.commit()
+        print(f"[MySQL] Inserted: {name} - {img_file}")
+    else:
+        print(f"[MySQL] Skipped duplicate: {name} - {img_file}")
     cursor.close()
     conn.close()
 
@@ -71,8 +83,7 @@ def encode_faces_facerecognition(input_dir):
             encodings = face_recognition.face_encodings(image)
             if encodings:
                 encoding = encodings[0].tobytes()
-                insert_encoding('facerecognition', person, encoding)
-                print(f"[MySQL] Encoded (face_recognition): {person} - {img_file}")
+                insert_encoding('facerecognition', person, img_file, encoding)
             else:
                 print(f"[WARN] No face found in {img_file}")
 
@@ -90,8 +101,7 @@ def encode_faces_insightface(input_dir):
             faces = app.get(img)
             if faces:
                 encoding = faces[0].embedding.tobytes()
-                insert_encoding('insightface', person, encoding)
-                print(f"[MySQL] Encoded (insightface): {person} - {img_file}")
+                insert_encoding('insightface', person, img_file, encoding)
             else:
                 print(f"[WARN] No face found in {img_file}")
 
@@ -116,8 +126,7 @@ def encode_faces_hybrid(input_dir):
                 encodings = face_recognition.face_encodings(img_rgb, [(top, right, bottom, left)])
                 if encodings:
                     encoding = encodings[0].tobytes()
-                    insert_encoding('hybrid', person, encoding)
-                    print(f"[MySQL] Encoded (hybrid): {person} - {img_file}")
+                    insert_encoding('hybrid', person, img_file, encoding)
                 else:
                     print(f"[WARN] No face found in {img_file} (hybrid)")
             else:

@@ -6,6 +6,7 @@ import face_recognition
 from tqdm import tqdm
 from models.face_recognition_model import FaceRecModel
 from models.insightface_model import InsightFaceModel
+import csv
 
 # ---- Model Loader ----
 def get_model(model_name):
@@ -39,19 +40,33 @@ def get_model(model_name):
 # ---- Pair Loader ----
 def load_pairs(pairs_txt):
     pairs = []
-    with open(pairs_txt, 'r') as f:
-        for line in f:
-            if line.startswith('#') or len(line.strip()) == 0:
-                continue
-            parts = line.strip().split()
-            if len(parts) == 3:
-                # same person
-                name, idx1, idx2 = parts
-                pairs.append((True, name, int(idx1), name, int(idx2)))
-            elif len(parts) == 4:
-                # different people
-                name1, idx1, name2, idx2 = parts
-                pairs.append((False, name1, int(idx1), name2, int(idx2)))
+    if pairs_txt.endswith('.csv'):
+        with open(pairs_txt, 'r', newline='') as f:
+            reader = csv.reader(f)
+            header = next(reader, None)
+            for row in reader:
+                # Remove empty trailing columns
+                row = [x for x in row if x.strip() != '']
+                if not row or row[0].startswith('#'):
+                    continue
+                if len(row) == 3:
+                    name, idx1, idx2 = row
+                    pairs.append((True, name, int(idx1), name, int(idx2)))
+                elif len(row) == 4:
+                    name1, idx1, name2, idx2 = row
+                    pairs.append((False, name1, int(idx1), name2, int(idx2)))
+    else:
+        with open(pairs_txt, 'r') as f:
+            for line in f:
+                if line.startswith('#') or len(line.strip()) == 0:
+                    continue
+                parts = line.strip().split()
+                if len(parts) == 3:
+                    name, idx1, idx2 = parts
+                    pairs.append((True, name, int(idx1), name, int(idx2)))
+                elif len(parts) == 4:
+                    name1, idx1, name2, idx2 = parts
+                    pairs.append((False, name1, int(idx1), name2, int(idx2)))
     return pairs
 
 # ---- Image Loader ----
@@ -86,12 +101,23 @@ def evaluate(pairs, lfw_dir, model_name, threshold, metric):
     for is_same, name1, idx1, name2, idx2 in tqdm(pairs, desc="Evaluating pairs"):
         img1 = load_image(lfw_dir, name1, idx1)
         img2 = load_image(lfw_dir, name2, idx2)
-        if img1 is None or img2 is None:
+        if img1 is None:
+            print(f"[SKIP] Missing image: {get_image_path(lfw_dir, name1, idx1)}")
+            continue
+        if img2 is None:
+            print(f"[SKIP] Missing image: {get_image_path(lfw_dir, name2, idx2)}")
             continue
         emb1 = model(img1)
         emb2 = model(img2)
+        if emb1 is None:
+            print(f"[SKIP] No encoding for: {get_image_path(lfw_dir, name1, idx1)}")
+            continue
+        if emb2 is None:
+            print(f"[SKIP] No encoding for: {get_image_path(lfw_dir, name2, idx2)}")
+            continue
         dist = compute_distance(emb1, emb2, metric)
         if dist is None:
+            print(f"[SKIP] Could not compute distance for: {name1}, {idx1} <-> {name2}, {idx2}")
             continue
         distances.append(dist)
         y_true.append(is_same)
@@ -109,8 +135,8 @@ def compute_metrics(y_true, y_pred):
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate face verification on LFW pairs.")
-    parser.add_argument('--lfw_dir', type=str, required=True, help='Path to lfw-deepfunneled directory')
-    parser.add_argument('--pairs_txt', type=str, required=True, help='Path to pairs.txt')
+    parser.add_argument('--lfw_dir', type=str, required=False, default='dataset', help='Path to lfw-deepfunneled directory (default: dataset/LFW)')
+    parser.add_argument('--pairs_txt', type=str, required=False, default='dataset/LFW/pairs.csv', help='Path to pairs.csv (default: dataset/LFW/pairs.csv)')
     parser.add_argument('--model', type=str, choices=['facerecognition', 'insightface', 'hybrid'], default='facerecognition')
     parser.add_argument('--threshold', type=float, default=0.5, help='Distance threshold for match')
     parser.add_argument('--metric', type=str, choices=['cosine', 'euclidean'], default='cosine')
@@ -118,6 +144,10 @@ def main():
 
     pairs = load_pairs(args.pairs_txt)
     y_true, y_pred, distances = evaluate(pairs, args.lfw_dir, args.model, args.threshold, args.metric)
+    print(f"Pairs processed: {len(y_true)} / {len(pairs)}")
+    if len(y_true) == 0:
+        print("No pairs were successfully processed. Check your image paths and encoding steps.")
+        return
     cm, acc = compute_metrics(y_true, y_pred)
     print(f"Confusion Matrix:\n{cm}")
     print(f"Accuracy: {acc*100:.2f}%")
@@ -126,7 +156,7 @@ def main():
     try:
         from sklearn.metrics import roc_curve, auc
         import matplotlib.pyplot as plt
-        fpr, tpr, _ = roc_curve(y_true, distances)
+        fpr, tpr, _ = roc_curve([int(x) for x in y_true], distances)
         roc_auc = auc(fpr, tpr)
         plt.figure()
         plt.plot(fpr, tpr, label=f'ROC curve (area = {roc_auc:.2f})')
@@ -140,4 +170,4 @@ def main():
         print("matplotlib or sklearn not installed, skipping ROC curve.")
 
 if __name__ == "__main__":
-    main() 
+    main()
