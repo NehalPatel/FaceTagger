@@ -36,7 +36,7 @@ class InsightFaceModel(FaceRecognizer):
         with open(output_path, "wb") as f:
             pickle.dump((known_names, known_encodings), f)
 
-    def recognize_faces(self, test_dir, encodings_path, output_dir):
+    def recognize_faces(self, test_dir, encodings_path, output_dir, model_name="InsightFaceModel"):
         # app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
         app = FaceAnalysis(name='buffalo_l', providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
         app.prepare(ctx_id=0)
@@ -60,6 +60,14 @@ class InsightFaceModel(FaceRecognizer):
                 cv2.rectangle(image, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 2)
                 cv2.putText(image, name, (box[0], box[1] - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+
+            # Add model name to top right
+            (h, w) = image.shape[:2]
+            text_size, _ = cv2.getTextSize(model_name, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
+            text_w, text_h = text_size
+            x = w - text_w - 10
+            y = text_h + 10
+            cv2.putText(image, model_name, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
 
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename, ext = os.path.splitext(file)

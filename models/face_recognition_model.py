@@ -29,7 +29,7 @@ class FaceRecModel(FaceRecognizer):
         with open(output_path, "wb") as f:
             pickle.dump((known_names, known_encodings), f)
 
-    def recognize_faces(self, test_dir, encodings_path, output_dir):
+    def recognize_faces(self, test_dir, encodings_path, output_dir, model_name="FaceRecModel"):
         with open(encodings_path, "rb") as f:
             known_names, known_encodings = pickle.load(f)
 
@@ -56,6 +56,14 @@ class FaceRecModel(FaceRecognizer):
                 cv2.rectangle(image_bgr, (left, top), (right, bottom), (0, 255, 0), 2)
                 cv2.putText(image_bgr, name, (left, top - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+
+            # Add model name to top right
+            (h, w) = image_bgr.shape[:2]
+            text_size, _ = cv2.getTextSize(model_name, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
+            text_w, text_h = text_size
+            x = w - text_w - 10
+            y = text_h + 10
+            cv2.putText(image_bgr, model_name, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
 
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename, ext = os.path.splitext(file)
