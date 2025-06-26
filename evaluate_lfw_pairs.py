@@ -140,9 +140,19 @@ def main():
     parser.add_argument('--model', type=str, choices=['facerecognition', 'insightface', 'hybrid'], default='facerecognition')
     parser.add_argument('--threshold', type=float, default=0.5, help='Distance threshold for match')
     parser.add_argument('--metric', type=str, choices=['cosine', 'euclidean'], default='cosine')
+    parser.add_argument('--limit_people', type=int, default=None, help='Limit to N random people for quick evaluation (default: None)')
     args = parser.parse_args()
 
-    pairs = load_pairs(args.pairs_txt)
+    # If limit_people is set, subsample people in the dataset
+    if args.limit_people is not None:
+        import random
+        all_people = [p for p in os.listdir(args.lfw_dir) if os.path.isdir(os.path.join(args.lfw_dir, p))]
+        selected_people = set(random.sample(all_people, min(args.limit_people, len(all_people))))
+        # Filter pairs to only include selected people
+        pairs = [pair for pair in load_pairs(args.pairs_txt) if pair[1] in selected_people and pair[3] in selected_people]
+    else:
+        pairs = load_pairs(args.pairs_txt)
+
     y_true, y_pred, distances = evaluate(pairs, args.lfw_dir, args.model, args.threshold, args.metric)
     print(f"Pairs processed: {len(y_true)} / {len(pairs)}")
     if len(y_true) == 0:
