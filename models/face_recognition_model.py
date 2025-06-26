@@ -3,6 +3,7 @@ import os
 import cv2
 import face_recognition
 import pickle
+from datetime import datetime
 from models.base import FaceRecognizer
 from app.utils import list_images
 
@@ -56,5 +57,9 @@ class FaceRecModel(FaceRecognizer):
                 cv2.putText(image_bgr, name, (left, top - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
-            cv2.imwrite(os.path.join(output_dir, f"result_{file}"), image_bgr)
-            print(f"[✅] Saved: {file}")
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename, ext = os.path.splitext(file)
+            output_filename = f"result_{filename}_{timestamp}{ext}"
+            output_path = os.path.join(output_dir, output_filename)
+            cv2.imwrite(output_path, image_bgr)
+            print(f"[✅] Saved: {output_filename}")

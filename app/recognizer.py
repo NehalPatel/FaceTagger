@@ -2,6 +2,7 @@ import os
 import pickle
 import face_recognition
 import cv2
+from datetime import datetime
 from .utils import list_images
 
 def recognize_faces(test_dir='test_images', encodings_file='encodings/known_faces.pkl'):
@@ -29,7 +30,10 @@ def recognize_faces(test_dir='test_images', encodings_file='encodings/known_face
             cv2.rectangle(image_bgr, (left, top), (right, bottom), (0, 255, 0), 2)
             cv2.putText(image_bgr, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
-        output_path = os.path.join("output", f"result_{file}")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename, ext = os.path.splitext(file)
+        output_filename = f"result_{filename}_{timestamp}{ext}"
+        output_path = os.path.join("output", output_filename)
         os.makedirs("output", exist_ok=True)
         cv2.imwrite(output_path, image_bgr)
         print(f"[💾] Saved result: {output_path}")

@@ -18,6 +18,7 @@ FaceTagger is a simple Python-based face recognition system that can identify kn
 FaceTagger/
 ├── known_faces/           # Images of known people (one face per image)
 ├── test_images/           # Images with multiple unknown faces
+├── output/                # Labeled images are saved here
 ├── encodings/             # Pickled face encodings
 ├── app/
 │   ├── encoder.py         # Encodes new faces
@@ -44,6 +45,7 @@ cd FaceTagger
 ```bash
 python -m venv venv
 venv\Scripts\activate      # Windows
+.\venv\Scripts\Activate
 # OR
 source venv/bin/activate   # macOS/Linux
 ```
@@ -64,6 +66,8 @@ python main.py
 ```
 
 4. The system detects faces in the test image, compares them with known encodings, and labels them.
+
+5. The final image is saved in the `output/` directory with a timestamp in its filename (e.g., `result_group_photo_20231027_123000.jpeg`).
 
 #### 🛠️ Dependencies
 face_recognition

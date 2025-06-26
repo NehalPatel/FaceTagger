@@ -2,6 +2,7 @@ import os
 import cv2
 import numpy as np
 import pickle
+from datetime import datetime
 from app.utils import list_images
 import face_recognition
 from insightface.app import FaceAnalysis
@@ -41,8 +42,13 @@ def run_hybrid():
                         name = known_names[best_match_index]
             cv2.rectangle(image_bgr, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(image_bgr, name, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
-        cv2.imwrite(os.path.join(output_dir, f"result_hybrid_{file}"), image_bgr)
-        print(f"[HYBRID] Saved: {file}")
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename, ext = os.path.splitext(file)
+        output_filename = f"result_hybrid_{filename}_{timestamp}{ext}"
+        output_path = os.path.join(output_dir, output_filename)
+        cv2.imwrite(output_path, image_bgr)
+        print(f"[HYBRID] Saved: {output_filename}")
 
 if __name__ == "__main__":
     run_hybrid()

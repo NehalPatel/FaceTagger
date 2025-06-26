@@ -7,6 +7,7 @@ import insightface
 from insightface.app import FaceAnalysis
 from models.base import FaceRecognizer
 from app.utils import list_images
+from datetime import datetime
 
 class InsightFaceModel(FaceRecognizer):
     def encode_known_faces(self, input_dir, output_path):
@@ -60,5 +61,9 @@ class InsightFaceModel(FaceRecognizer):
                 cv2.putText(image, name, (box[0], box[1] - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
-            cv2.imwrite(os.path.join(output_dir, f"result_{file}"), image)
-            print(f"[✅] Saved: {file}")
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename, ext = os.path.splitext(file)
+            output_filename = f"result_{filename}_{timestamp}{ext}"
+            output_path = os.path.join(output_dir, output_filename)
+            cv2.imwrite(output_path, image)
+            print(f"[✅] Saved: {output_filename}")
