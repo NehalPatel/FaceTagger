@@ -51,16 +51,35 @@ def recognize_face_recognition(gallery_encodings, gallery_names, probe_encoding,
         return gallery_names[idx], True
     return 'Unknown', False
 
-def recognize_insightface(gallery_encodings, gallery_names, probe_encoding, threshold=1.0):
+def recognize_insightface(gallery_encodings, gallery_names, probe_encoding, threshold=1.2, metric='l2'):
     if probe_encoding is None:
         return 'Unknown', False
-    dists = [np.linalg.norm(probe_encoding - enc) for enc in gallery_encodings]
-    if len(dists) == 0:
+    # Normalize embeddings
+    probe_encoding = probe_encoding / np.linalg.norm(probe_encoding)
+    gallery_encodings = [enc / np.linalg.norm(enc) for enc in gallery_encodings]
+    if metric == 'l2':
+        dists = [np.linalg.norm(probe_encoding - enc) for enc in gallery_encodings]
+        if not dists:
+            return 'Unknown', False
+        min_idx = np.argmin(dists)
+        if dists[min_idx] < threshold:
+            return gallery_names[min_idx], True
         return 'Unknown', False
-    min_idx = np.argmin(dists)
-    if dists[min_idx] < threshold:
-        return gallery_names[min_idx], True
-    return 'Unknown', False
+    elif metric == 'cosine':
+        sims = [np.dot(probe_encoding, enc) for enc in gallery_encodings]
+        max_idx = np.argmax(sims)
+        if sims[max_idx] > (1 - threshold):
+            return gallery_names[max_idx], True
+        return 'Unknown', False
+    else:
+        print(f"[WARN] Unknown metric: {metric}. Using l2 by default.")
+        dists = [np.linalg.norm(probe_encoding - enc) for enc in gallery_encodings]
+        if not dists:
+            return 'Unknown', False
+        min_idx = np.argmin(dists)
+        if dists[min_idx] < threshold:
+            return gallery_names[min_idx], True
+        return 'Unknown', False
 
 def recognize_hybrid(app, gallery_dict, gallery_encodings, gallery_names, lfw_dir, person, img, threshold=0.6):
     img_path = os.path.join(lfw_dir, person, img)
@@ -85,6 +104,8 @@ def main():
     parser.add_argument('--num_people', type=int, default=None, help='Number of people to sample (default: all qualified)')
     parser.add_argument('--models', type=str, nargs='+', default=['facerecognition', 'insightface', 'hybrid'], choices=['facerecognition', 'insightface', 'hybrid'])
     parser.add_argument('--output_csv', type=str, default=None, help='Optional: path to save results as CSV')
+    parser.add_argument('--metric', type=str, default='l2', choices=['l2', 'cosine'], help='Metric for insightface: l2 or cosine (default: l2)')
+    parser.add_argument('--threshold', type=float, default=None, help='Threshold for insightface (default: 1.2 for l2, 0.35 for cosine)')
     args = parser.parse_args()
 
     # Step 1: Prepare gallery/probe split
@@ -133,6 +154,14 @@ def main():
 
     # Step 3: Evaluate probe images
     total_probes = sum(len(probe_dict[p]) for p in selected_people)
+    # Set default threshold if not provided
+    if args.threshold is None:
+        if args.metric == 'l2':
+            insightface_threshold = 1.2
+        else:
+            insightface_threshold = 0.35
+    else:
+        insightface_threshold = args.threshold
     with tqdm(total=total_probes, desc="Processing probe images") as pbar:
         for person in selected_people:
             for img in probe_dict[person]:
@@ -155,7 +184,7 @@ def main():
                     faces = app.get(cv2.imread(img_path))
                     row['if_detected'] = bool(faces)
                     if faces:
-                        pred, found = recognize_insightface(gallery_encodings_if, gallery_names_if, faces[0].embedding)
+                        pred, found = recognize_insightface(gallery_encodings_if, gallery_names_if, faces[0].embedding, threshold=insightface_threshold, metric=args.metric)
                         row['if_pred'] = pred
                         row['if_correct'] = (pred == person)
                     else:

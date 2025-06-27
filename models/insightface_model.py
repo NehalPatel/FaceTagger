@@ -36,8 +36,10 @@ class InsightFaceModel(FaceRecognizer):
         with open(output_path, "wb") as f:
             pickle.dump((known_names, known_encodings), f)
 
+    def l2_normalize(self, x):
+        return x / np.linalg.norm(x)
+
     def recognize_faces(self, test_dir, encodings_path, output_dir, model_name="InsightFaceModel"):
-        # app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
         app = FaceAnalysis(name='buffalo_l', providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
         app.prepare(ctx_id=0)
 
@@ -46,15 +48,18 @@ class InsightFaceModel(FaceRecognizer):
 
         os.makedirs(output_dir, exist_ok=True)
 
+        threshold = 1.2  # Updated threshold for L2 distance
+
         for file in list_images(test_dir):
             path = os.path.join(test_dir, file)
             image = cv2.imread(path)
             faces = app.get(image)
 
             for face in faces:
-                distances = [np.linalg.norm(face.embedding - enc) for enc in known_encodings]
+                probe_emb = self.l2_normalize(face.embedding)
+                distances = [np.linalg.norm(probe_emb - self.l2_normalize(enc)) for enc in known_encodings]
                 best_idx = np.argmin(distances)
-                name = known_names[best_idx] if distances[best_idx] < 0.7 else "Unknown"
+                name = known_names[best_idx] if distances[best_idx] < threshold else "Unknown"
 
                 box = face.bbox.astype(int)
                 cv2.rectangle(image, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 2)
