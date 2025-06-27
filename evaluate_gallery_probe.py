@@ -81,28 +81,11 @@ def recognize_insightface(gallery_encodings, gallery_names, probe_encoding, thre
             return gallery_names[min_idx], True
         return 'Unknown', False
 
-def recognize_hybrid(app, gallery_dict, gallery_encodings, gallery_names, lfw_dir, person, img, threshold=0.6):
-    img_path = os.path.join(lfw_dir, person, img)
-    img_bgr = cv2.imread(img_path)
-    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-    faces = app.get(img_bgr)
-    if not faces:
-        return False, 'Unknown', False
-    box = faces[0].bbox.astype(int)
-    x1, y1, x2, y2 = box
-    top, right, bottom, left = y1, x2, y2, x1
-    encodings = face_recognition.face_encodings(img_rgb, [(top, right, bottom, left)])
-    if not encodings:
-        return True, 'Unknown', False
-    probe_encoding = encodings[0]
-    pred, found = recognize_face_recognition(gallery_encodings, gallery_names, probe_encoding, threshold)
-    return True, pred, found
-
 def main():
     parser = argparse.ArgumentParser(description="Evaluate face recognition models on LFW gallery/probe split.")
     parser.add_argument('--lfw_dir', type=str, default='dataset/LFW/lfw-deepfunneled/lfw-deepfunneled', help='Path to LFW dataset (default: dataset/LFW/lfw-deepfunneled/lfw-deepfunneled)')
     parser.add_argument('--num_people', type=int, default=None, help='Number of people to sample (default: all qualified)')
-    parser.add_argument('--models', type=str, nargs='+', default=['facerecognition', 'insightface', 'hybrid'], choices=['facerecognition', 'insightface', 'hybrid'])
+    parser.add_argument('--models', type=str, nargs='+', default=['facerecognition', 'insightface'], choices=['facerecognition', 'insightface'])
     parser.add_argument('--output_csv', type=str, default=None, help='Optional: path to save results as CSV')
     parser.add_argument('--metric', type=str, default='l2', choices=['l2', 'cosine'], help='Metric for insightface: l2 or cosine (default: l2)')
     parser.add_argument('--threshold', type=float, default=None, help='Threshold for insightface (default: 1.2 for l2, 0.35 for cosine)')
@@ -131,7 +114,7 @@ def main():
 
     # Step 2: Encode gallery for each model
     results = []
-    if 'facerecognition' in args.models or 'hybrid' in args.models:
+    if 'facerecognition' in args.models:
         gallery_encodings_fr = []
         gallery_names_fr = []
         enc_fr = encode_gallery_face_recognition(args.lfw_dir, gallery_dict)
@@ -139,7 +122,7 @@ def main():
             if person in enc_fr:
                 gallery_encodings_fr.append(enc_fr[person])
                 gallery_names_fr.append(person)
-    if 'insightface' in args.models or 'hybrid' in args.models:
+    if 'insightface' in args.models:
         if FaceAnalysis is None:
             raise ImportError("insightface not installed!")
         app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
@@ -190,12 +173,6 @@ def main():
                     else:
                         row['if_pred'] = 'Unknown'
                         row['if_correct'] = False
-                # hybrid
-                if 'hybrid' in args.models:
-                    detected, pred, found = recognize_hybrid(app, gallery_dict, gallery_encodings_fr, gallery_names_fr, args.lfw_dir, person, img)
-                    row['hy_detected'] = detected
-                    row['hy_pred'] = pred
-                    row['hy_correct'] = (pred == person)
                 results.append(row)
                 pbar.update(1)
 
@@ -219,14 +196,6 @@ def main():
             recall = correct / total if total else 0
             f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0
             summary.append({'Model': 'insightface', 'Detection Rate': detected/total, 'Accuracy': correct/total, 'Precision': precision, 'Recall': recall, 'F1': f1})
-        if model == 'hybrid':
-            detected = df['hy_detected'].sum()
-            total = len(df)
-            correct = df['hy_correct'].sum()
-            precision = correct / detected if detected else 0
-            recall = correct / total if total else 0
-            f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0
-            summary.append({'Model': 'hybrid', 'Detection Rate': detected/total, 'Accuracy': correct/total, 'Precision': precision, 'Recall': recall, 'F1': f1})
     summary_df = pd.DataFrame(summary)
     print("\n=== Model Comparison Matrix ===")
     print(summary_df.to_string(index=False, float_format=lambda x: f"{x:.3f}"))
